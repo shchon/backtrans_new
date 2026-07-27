@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">backtranslate</string>
+    <string name="title_activity_main">backtranslate</string>
+    <string name="package_name">com.backtranslate.app</string>
+    <string name="custom_url_scheme">com.backtranslate.app</string>
+</resources>
