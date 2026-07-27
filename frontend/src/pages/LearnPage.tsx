@@ -26,6 +26,7 @@ export default function LearnPage({ onNavigateToReview, pendingSessionId }: Prop
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<{today: number; total: number; streak: number}>({today: 0, total: 0, streak: 0});
   const [input, setInput] = useState('');
+  const [importStep, setImportStep] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -89,6 +90,10 @@ export default function LearnPage({ onNavigateToReview, pendingSessionId }: Prop
   }, [input, sessionId, currentIdx, subtitles, completedCount, onNavigateToReview]);
 
   const handleImport = async () => {
+    setError(null);
+
+    // Step 1: Pick Chinese SRT
+    setImportStep('① 请选择中文 SRT 文件');
     const chInput = document.createElement('input');
     chInput.type = 'file';
     chInput.accept = '*/*';
@@ -96,18 +101,21 @@ export default function LearnPage({ onNavigateToReview, pendingSessionId }: Prop
       chInput.onchange = () => resolve(chInput.files?.[0] ?? null);
       chInput.click();
     });
-    if (!chFile) return;
+    if (!chFile) { setImportStep(null); return; }
 
+    // Step 2: Pick English SRT
+    setImportStep('② 请选择英文 SRT 文件');
     const enInput = document.createElement('input');
     enInput.type = 'file';
-    enInput.accept = '.srt,.txt';
+    enInput.accept = '*/*';
     const enFile = await new Promise<File | null>(resolve => {
       enInput.onchange = () => resolve(enInput.files?.[0] ?? null);
       enInput.click();
     });
-    if (!enFile) return;
+    if (!enFile) { setImportStep(null); return; }
 
     setLoading(true);
+    setImportStep(null);
     setError(null);
     try {
       const chText = await chFile.text();
@@ -170,6 +178,7 @@ export default function LearnPage({ onNavigateToReview, pendingSessionId }: Prop
           <span style={{color:'#4a90d9',fontWeight:'bold'}}>今日 {stats.today} 句</span>
           <span style={{color:'#27ae60',fontWeight:'bold'}}>总计 {stats.total} 句</span>
         </div>
+        {importStep && <div style={{background:'#fff3cd',color:'#856404',padding:'8px 12px',borderRadius:4,marginBottom:12,fontSize:14,textAlign:'center'}}>{importStep}</div>}
         {error && <div className="error" style={{background:'#fdd',color:'#c33',padding:'8px 12px',borderRadius:4,marginBottom:12}}>{error}</div>}
         <div style={{textAlign:'center',padding:60,color:'#999',fontSize:16}}>
           <p>点击下方按钮导入字幕文件开始学习</p>

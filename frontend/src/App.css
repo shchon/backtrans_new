@@ -46,7 +46,7 @@ body {
 }
 
 /* Mobile: bottom tab bar */
-@media (max-width: 600px) {
+@media (max-width: 768px) {
   .app-layout {
     flex-direction: column;
   }
