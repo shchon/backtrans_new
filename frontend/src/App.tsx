@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type CSSProperties } from 'react';
 import { initDatabase } from './db/index';
 import LearnPage from './pages/LearnPage';
 import ReviewPage from './pages/ReviewPage';
@@ -16,6 +16,11 @@ const NAV_ITEMS: {key: Page; label: string}[] = [
   {key: 'expressions', label: '表达库'},
   {key: 'settings', label: '设置'},
 ];
+
+const PAGE_STYLE = (active: boolean): CSSProperties => ({
+  display: active ? 'block' : 'none',
+  height: '100%',
+});
 
 export default function App() {
   const [page, setPage] = useState<Page>('learn');
@@ -44,21 +49,27 @@ export default function App() {
           </button>
         ))}
       </nav>
-      <main className="content">
-        {page === 'learn' && (
+      <main className="content" style={{position:'relative'}}>
+        <div style={PAGE_STYLE(page === 'learn')}>
           <LearnPage
             onNavigateToReview={(sid) => { setReviewSessionId(sid); setPage('review'); }}
             pendingSessionId={pendingLearnSessionId}
           />
-        )}
-        {page === 'review' && <ReviewPage sessionId={reviewSessionId} />}
-        {page === 'favorites' && (
+        </div>
+        <div style={PAGE_STYLE(page === 'review')}>
+          <ReviewPage sessionId={reviewSessionId} />
+        </div>
+        <div style={PAGE_STYLE(page === 'favorites')}>
           <FavoritesPage
             onStartReview={(sid) => { setPendingLearnSessionId(sid); setPage('learn'); }}
           />
-        )}
-        {page === 'expressions' && <ExpressionsPage />}
-        {page === 'settings' && <SettingsPage />}
+        </div>
+        <div style={PAGE_STYLE(page === 'expressions')}>
+          <ExpressionsPage />
+        </div>
+        <div style={PAGE_STYLE(page === 'settings')}>
+          <SettingsPage />
+        </div>
       </main>
     </div>
   );
