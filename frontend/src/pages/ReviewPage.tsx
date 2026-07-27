@@ -51,11 +51,11 @@ export default function ReviewPage({ sessionId }: Props) {
   useEffect(() => {
     if (!sessionId) return;
     pollRef.current = setInterval(() => {
+      // Always refresh data first, then check if done
+      loadData();
       const current = getEvaluationsForSession(sessionId);
       const hasPending = current.some(e => e.status === 'pending' || e.status === 'processing');
-      if (hasPending) {
-        loadData();
-      } else if (pollRef.current) {
+      if (!hasPending && pollRef.current) {
         clearInterval(pollRef.current);
         pollRef.current = null;
       }
