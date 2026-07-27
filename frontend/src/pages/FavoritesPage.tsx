@@ -17,7 +17,7 @@ export default function FavoritesPage({ onStartReview, active }: Props) {
   }, [active]);
 
   const del = (subId: number) => { removeFavorite(subId); load(); };
-  const clearAll = () => { clearFavorites(); load(); };
+  const clearAll = () => { if (window.confirm('确定要清空所有收藏句子吗？此操作不可撤销。')) { clearFavorites(); load(); } };
 
   const startReview = () => {
     if (!favorites.length) return;
