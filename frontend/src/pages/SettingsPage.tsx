@@ -25,8 +25,8 @@ export default function SettingsPage() {
     if (!config) return;
     setTesting(true);
     setMessage(null);
-    const ok = await testConnection(config.baseUrl, config.apiKey, config.model);
-    setMessage(ok ? '连接成功' : '连接失败');
+    const result = await testConnection(config.baseUrl, config.apiKey, config.model);
+    setMessage(result.ok ? '连接成功' : `连接失败: ${result.error}`);
     setTesting(false);
   };
 

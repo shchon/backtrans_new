@@ -81,9 +81,10 @@ export function buildContext(
 
 export async function testConnection(
   baseUrl: string, apiKey: string, model: string,
-): Promise<boolean> {
+): Promise<{ ok: boolean; error?: string }> {
   try {
-    const res = await fetch(`${baseUrl.replace(/\/+$/, '')}/chat/completions`, {
+    const url = `${baseUrl.replace(/\/+$/, '')}/chat/completions`;
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -93,6 +94,10 @@ export async function testConnection(
       }),
       signal: AbortSignal.timeout(15000),
     });
-    return res.ok;
-  } catch { return false; }
+    if (res.ok) return { ok: true };
+    const text = await res.text().catch(() => '');
+    return { ok: false, error: `HTTP ${res.status}: ${text.slice(0, 200)}` };
+  } catch (e) {
+    return { ok: false, error: String(e).slice(0, 200) };
+  }
 }
