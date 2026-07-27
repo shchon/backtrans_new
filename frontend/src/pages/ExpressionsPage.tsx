@@ -1,13 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getAllExpressions, deleteExpression } from '../db/operations';
 import type { ExpressionRow } from '../db/operations';
 
-export default function ExpressionsPage() {
+interface Props { active?: boolean; }
+
+export default function ExpressionsPage({ active }: Props) {
   const [expressions, setExpressions] = useState<ExpressionRow[]>([]);
   const [search, setSearch] = useState('');
 
   const load = () => { try { setExpressions(getAllExpressions()); } catch {} };
-  useEffect(() => { load(); }, []);
+  const prevActive = useRef(false);
+  useEffect(() => {
+    if (active && !prevActive.current) load();
+    prevActive.current = !!active;
+  }, [active]);
 
   const del = (id: number) => { deleteExpression(id); load(); };
 

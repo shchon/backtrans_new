@@ -57,15 +57,16 @@ export default function App() {
           />
         </div>
         <div style={PAGE_STYLE(page === 'review')}>
-          <ReviewPage sessionId={reviewSessionId} />
+          <ReviewPage sessionId={reviewSessionId} active={page === 'review'} />
         </div>
         <div style={PAGE_STYLE(page === 'favorites')}>
           <FavoritesPage
             onStartReview={(sid) => { setPendingLearnSessionId(sid); setPage('learn'); }}
+            active={page === 'favorites'}
           />
         </div>
         <div style={PAGE_STYLE(page === 'expressions')}>
-          <ExpressionsPage />
+          <ExpressionsPage active={page === 'expressions'} />
         </div>
         <div style={PAGE_STYLE(page === 'settings')}>
           <SettingsPage />

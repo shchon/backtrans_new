@@ -6,11 +6,11 @@ import {
 } from '../db/operations';
 import type { EvalRow } from '../db/operations';
 
-interface Props { sessionId: number | null; }
+interface Props { sessionId: number | null; active?: boolean; }
 
 interface EvalWithSub { eval: EvalRow; sub: SubtitleRow; }
 
-export default function ReviewPage({ sessionId }: Props) {
+export default function ReviewPage({ sessionId, active }: Props) {
   const [items, setItems] = useState<EvalWithSub[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +45,13 @@ export default function ReviewPage({ sessionId }: Props) {
   };
 
   useEffect(() => { loadData(); setExpanded(new Set()); }, [sessionId]);
+
+  // Reload when page becomes active (pages stay mounted)
+  const prevActive = useRef(false);
+  useEffect(() => {
+    if (active && !prevActive.current) loadData();
+    prevActive.current = !!active;
+  }, [active]);
 
   // Poll for pending evaluations every 2s
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);

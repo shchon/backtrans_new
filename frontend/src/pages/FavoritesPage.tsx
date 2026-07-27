@@ -1,16 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   getFavorites, removeFavorite, clearFavorites,
   createSession, createSubtitlesBatch,
 } from '../db/operations';
 
-interface Props { onStartReview: (sessionId: number) => void; }
+interface Props { onStartReview: (sessionId: number) => void; active?: boolean; }
 
-export default function FavoritesPage({ onStartReview }: Props) {
+export default function FavoritesPage({ onStartReview, active }: Props) {
   const [favorites, setFavorites] = useState<Record<string, unknown>[]>([]);
 
   const load = () => { try { setFavorites(getFavorites()); } catch {} };
-  useEffect(() => { load(); }, []);
+  const prevActive = useRef(false);
+  useEffect(() => {
+    if (active && !prevActive.current) load();
+    prevActive.current = !!active;
+  }, [active]);
 
   const del = (subId: number) => { removeFavorite(subId); load(); };
   const clearAll = () => { clearFavorites(); load(); };
