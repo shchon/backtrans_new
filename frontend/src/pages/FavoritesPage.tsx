@@ -3,13 +3,27 @@ import {
   getFavorites, removeFavorite, clearFavorites,
   createSession, createSubtitlesBatch,
 } from '../db/operations';
+import { getDb } from '../db/index';
 
 interface Props { onStartReview: (sessionId: number) => void; }
 
 export default function FavoritesPage({ onStartReview }: Props) {
   const [favorites, setFavorites] = useState<Record<string, unknown>[]>([]);
+  const [debug, setDebug] = useState('');
 
-  const load = () => { try { setFavorites(getFavorites()); } catch {} };
+  const load = () => {
+    try {
+      const data = getFavorites();
+      setFavorites(data);
+      const db = getDb();
+      const cnt = db.exec('SELECT COUNT(*) FROM favorites');
+      const count = cnt.length ? String(cnt[0].values[0][0]) : 'err';
+      setDebug(`DB favs: ${count}, returned: ${data.length}`);
+    } catch (e) {
+      setDebug(`Error: ${e}`);
+      setFavorites([]);
+    }
+  };
   useEffect(() => { load(); }, []);
 
   const del = (subId: number) => { removeFavorite(subId); load(); };
@@ -37,6 +51,7 @@ export default function FavoritesPage({ onStartReview }: Props) {
         <button onClick={clearAll} disabled={!favorites.length} style={{background:'#e74c3c',color:'white',border:'none',padding:'8px 16px',borderRadius:4,fontSize:14,cursor:'pointer'}}>清空</button>
         <span style={{color:'#666',lineHeight:'36px'}}>共 {favorites.length} 句</span>
       </div>
+      <div style={{fontSize:11,color:'#aaa',marginBottom:8}}>{debug}</div>
       <div style={{display:'flex',flexDirection:'column',gap:4}}>
         {favorites.map((fav,i) => (
           <div key={i} style={{border:'1px solid #ddd',borderRadius:6,padding:'8px 12px',background:'white',display:'flex',alignItems:'center',gap:10}}>

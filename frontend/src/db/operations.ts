@@ -177,14 +177,23 @@ export function isFavorite(subtitleId: number): boolean {
 
 export function getFavorites(): Record<string, unknown>[] {
   const db = getDb();
-  const res = db.exec(
-    `SELECT f.id as fav_id, f.created_at as fav_created_at,
-            s.id, s.session_id, s.idx, s.chinese, s.english_official,
-            s.prev_chinese, s.prev_english, s.next_chinese, s.next_english
-     FROM favorites f JOIN subtitles s ON f.subtitle_id = s.id
-     ORDER BY f.created_at DESC`);
-  if (!res.length) return [];
-  return res[0].values.map(v => rowToObj(res[0].columns, v));
+  // First get all favorite subtitle_ids
+  const favRes = db.exec("SELECT subtitle_id, created_at FROM favorites ORDER BY created_at DESC");
+  if (!favRes.length) return [];
+
+  const results: Record<string, unknown>[] = [];
+  for (const row of favRes[0].values) {
+    const subtitleId = Number(row[0]);
+    const createdAt = String(row[1] ?? '');
+    // Then get subtitle data
+    const subRes = db.exec("SELECT id, session_id, idx, chinese, english_official, prev_chinese, prev_english, next_chinese, next_english FROM subtitles WHERE id = ?", [subtitleId]);
+    if (subRes.length && subRes[0].values.length) {
+      const sub = rowToObj<Record<string, unknown>>(subRes[0].columns, subRes[0].values[0]);
+      sub.fav_created_at = createdAt;
+      results.push(sub);
+    }
+  }
+  return results;
 }
 
 export function clearFavorites(): void {
