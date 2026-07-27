@@ -195,7 +195,7 @@ export default function LearnPage({ onNavigateToReview, pendingSessionId }: Prop
     <div className="learn-page">
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
         <h1 style={{fontSize:20,fontWeight:'bold'}}>回译训练</h1>
-        <button onClick={() => { setHasSession(false); }} style={{background:'#e74c3c',color:'white',border:'none',padding:'6px 14px',borderRadius:4,fontSize:13,cursor:'pointer'}}>
+        <button onClick={() => { if (sessionId !== null) { updateSessionCompleted(sessionId, completedCount); recordSentenceCompleted(); onNavigateToReview?.(sessionId); } }} style={{background:'#e74c3c',color:'white',border:'none',padding:'6px 14px',borderRadius:4,fontSize:13,cursor:'pointer'}}>
           结束学习
         </button>
       </div>
