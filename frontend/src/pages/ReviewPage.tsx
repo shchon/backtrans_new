@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { SubtitleRow } from '../db/operations';
 import {
   getSubtitlesForSession, getEvaluationsForSession,
@@ -45,6 +45,23 @@ export default function ReviewPage({ sessionId }: Props) {
   };
 
   useEffect(() => { loadData(); setExpanded(new Set()); }, [sessionId]);
+
+  // Poll for pending evaluations every 2s
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => {
+    if (!sessionId) return;
+    pollRef.current = setInterval(() => {
+      const current = getEvaluationsForSession(sessionId);
+      const hasPending = current.some(e => e.status === 'pending' || e.status === 'processing');
+      if (hasPending) {
+        loadData();
+      } else if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    }, 2000);
+    return () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
+  }, [sessionId]);
 
   const toggleExpand = (id: number) => {
     const next = new Set(expanded);
