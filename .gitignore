@@ -1,8 +1,8 @@
 __pycache__/
 *.pyc
 *.pyo
-config/
-data/
+/config/
+/data/
 .pytest_cache/
 .vscode/
 .idea/
