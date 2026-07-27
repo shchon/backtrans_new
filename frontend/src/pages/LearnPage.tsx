@@ -91,7 +91,7 @@ export default function LearnPage({ onNavigateToReview, pendingSessionId }: Prop
   const handleImport = async () => {
     const chInput = document.createElement('input');
     chInput.type = 'file';
-    chInput.accept = '.srt,.txt';
+    chInput.accept = '*/*';
     const chFile = await new Promise<File | null>(resolve => {
       chInput.onchange = () => resolve(chInput.files?.[0] ?? null);
       chInput.click();
