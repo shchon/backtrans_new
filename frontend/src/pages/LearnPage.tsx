@@ -29,6 +29,7 @@ export default function LearnPage({ onNavigateToReview, pendingSessionId }: Prop
   const [pendingChFile, setPendingChFile] = useState<File | null>(null);
   const [pendingEnFile, setPendingEnFile] = useState<File | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const jumpInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setStats(getAllStats());
@@ -173,6 +174,15 @@ export default function LearnPage({ onNavigateToReview, pendingSessionId }: Prop
     }
   };
 
+  const handleJump = () => {
+    const v = parseInt(jumpInputRef.current?.value || '') - 1;
+    if (v >= 0 && v < totalCount) {
+      setCurrentIdx(v);
+      setInput('');
+      inputRef.current?.focus();
+    }
+  };
+
   // Render
   if (!hasSession) {
     return (
@@ -224,10 +234,13 @@ export default function LearnPage({ onNavigateToReview, pendingSessionId }: Prop
         <div style={{marginTop:16}}>
           <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
             <span style={{fontSize:13,color:'#666'}}>跳转到第</span>
-            <input type="number" min={1} max={totalCount} defaultValue={currentIdx + 1}
-              onKeyDown={(e) => { if (e.key === 'Enter') { const v = parseInt((e.target as HTMLInputElement).value) - 1; if (v >= 0 && v < totalCount) { setCurrentIdx(v); setInput(''); }}}}
-              style={{width:60,padding:'4px 8px',border:'1px solid #ccc',borderRadius:3,fontSize:13}} />
+            <input ref={jumpInputRef} type="number" min={1} max={totalCount} defaultValue={currentIdx + 1}
+              style={{width:56,padding:'4px 8px',border:'1px solid #ccc',borderRadius:3,fontSize:13}} />
             <span style={{fontSize:13,color:'#666'}}>/ {totalCount} 句</span>
+            <button onClick={handleJump}
+              style={{padding:'4px 10px',border:'1px solid #4a90d9',color:'#4a90d9',background:'white',borderRadius:3,fontSize:12,cursor:'pointer'}}>
+              GO
+            </button>
           </div>
           <div style={{fontSize:20,minHeight:60,marginBottom:16,lineHeight:1.5}}>{currentSub.chinese}</div>
           <input ref={inputRef} type="text" value={input} onChange={e => setInput(e.target.value)}
