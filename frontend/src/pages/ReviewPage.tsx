@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import type { SubtitleRow } from '../db/operations';
 import {
   getSubtitlesForSession, getEvaluationsForSession,
-  addFavorite, removeFavorite, addExpression,
+  addFavorite, removeFavorite, addExpression, isFavorite,
 } from '../db/operations';
 import type { EvalRow } from '../db/operations';
 
@@ -33,6 +33,13 @@ export default function ReviewPage({ sessionId }: Props) {
       }
       combined.sort((a, b) => a.sub.idx - b.sub.idx);
       setItems(combined);
+
+      // Load existing favorites
+      const favSet = new Set<number>();
+      for (const item of combined) {
+        if (isFavorite(item.sub.id)) favSet.add(item.sub.id);
+      }
+      setFavorites(favSet);
     } catch { setError('加载失败'); }
     setLoading(false);
   };

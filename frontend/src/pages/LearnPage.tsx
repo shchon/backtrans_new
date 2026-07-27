@@ -26,7 +26,8 @@ export default function LearnPage({ onNavigateToReview, pendingSessionId }: Prop
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<{today: number; total: number; streak: number}>({today: 0, total: 0, streak: 0});
   const [input, setInput] = useState('');
-  const [importStep, setImportStep] = useState<string | null>(null);
+  const [pendingChFile, setPendingChFile] = useState<File | null>(null);
+  const [pendingEnFile, setPendingEnFile] = useState<File | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -45,7 +46,7 @@ export default function LearnPage({ onNavigateToReview, pendingSessionId }: Prop
     setTimeout(() => inputRef.current?.focus(), 100);
   }, [pendingSessionId]);
 
-  const handleSubmit = useCallback(async () => {
+  const handleSubmit = useCallback(() => {
     const text = input.trim();
     if (!text || sessionId === null || currentIdx >= subtitles.length) return;
 
@@ -53,15 +54,13 @@ export default function LearnPage({ onNavigateToReview, pendingSessionId }: Prop
     setError(null);
     const sub = subtitles[currentIdx];
 
-    try {
-      const tid = createTranslation(sub.id, text, 1);
-      const eid = createEvaluation(tid, "pending");
+    const tid = createTranslation(sub.id, text, 1);
+    const eid = createEvaluation(tid, "pending");
 
-      // AI call in background
-      const config = loadConfig();
-      const context = buildContext(subtitles, sub.idx, config.contextN);
-      const result = await callAi(config, context, text, sub.english_official);
-
+    // Fire and forget AI call
+    const config = loadConfig();
+    const context = buildContext(subtitles, sub.idx, config.contextN);
+    callAi(config, context, text, sub.english_official).then(result => {
       if (result) {
         updateEvaluationStatus(eid, "done",
           result.meaning_score, result.grammar_score,
@@ -71,51 +70,24 @@ export default function LearnPage({ onNavigateToReview, pendingSessionId }: Prop
       } else {
         updateEvaluationStatus(eid, "failed", null, null, null, null, null, null, "AI call failed");
       }
+    });
 
-      setCompletedCount(prev => prev + 1);
-      setCurrentIdx(prev => prev + 1);
-      setInput('');
-      setLoading(false);
-      recordSentenceCompleted();
-      updateSessionCompleted(sessionId, completedCount + 1);
-      inputRef.current?.focus();
+    // Move to next sentence immediately
+    setCompletedCount(prev => prev + 1);
+    setCurrentIdx(prev => prev + 1);
+    setInput('');
+    setLoading(false);
+    recordSentenceCompleted();
+    updateSessionCompleted(sessionId, completedCount + 1);
+    inputRef.current?.focus();
 
-      if (currentIdx + 1 >= subtitles.length) {
-        setTimeout(() => onNavigateToReview?.(sessionId), 800);
-      }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : '提交失败');
-      setLoading(false);
+    if (currentIdx + 1 >= subtitles.length) {
+      setTimeout(() => onNavigateToReview?.(sessionId), 800);
     }
   }, [input, sessionId, currentIdx, subtitles, completedCount, onNavigateToReview]);
 
-  const handleImport = async () => {
-    setError(null);
-
-    // Step 1: Pick Chinese SRT
-    setImportStep('① 请选择中文 SRT 文件');
-    const chInput = document.createElement('input');
-    chInput.type = 'file';
-    chInput.accept = '*/*';
-    const chFile = await new Promise<File | null>(resolve => {
-      chInput.onchange = () => resolve(chInput.files?.[0] ?? null);
-      chInput.click();
-    });
-    if (!chFile) { setImportStep(null); return; }
-
-    // Step 2: Pick English SRT
-    setImportStep('② 请选择英文 SRT 文件');
-    const enInput = document.createElement('input');
-    enInput.type = 'file';
-    enInput.accept = '*/*';
-    const enFile = await new Promise<File | null>(resolve => {
-      enInput.onchange = () => resolve(enInput.files?.[0] ?? null);
-      enInput.click();
-    });
-    if (!enFile) { setImportStep(null); return; }
-
+  const doImport = async (chFile: File, enFile: File) => {
     setLoading(true);
-    setImportStep(null);
     setError(null);
     try {
       const chText = await chFile.text();
@@ -148,12 +120,47 @@ export default function LearnPage({ onNavigateToReview, pendingSessionId }: Prop
       setCurrentIdx(0);
       setCompletedCount(0);
       setHasSession(true);
+      setPendingChFile(null);
+      setPendingEnFile(null);
       setLoading(false);
       setTimeout(() => inputRef.current?.focus(), 100);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : '导入失败');
       setLoading(false);
     }
+  };
+
+  const handleImportCh = async () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '*/*';
+    const file = await new Promise<File | null>(resolve => {
+      input.onchange = () => resolve(input.files?.[0] ?? null);
+      input.click();
+    });
+    if (!file) return;
+    setPendingChFile(file);
+    // If English already selected, auto-import
+    setPendingEnFile(prev => {
+      if (prev) setTimeout(() => doImport(file, prev), 100);
+      return prev;
+    });
+  };
+
+  const handleImportEn = async () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '*/*';
+    const file = await new Promise<File | null>(resolve => {
+      input.onchange = () => resolve(input.files?.[0] ?? null);
+      input.click();
+    });
+    if (!file) return;
+    setPendingEnFile(file);
+    setPendingChFile(prev => {
+      if (prev) setTimeout(() => doImport(prev, file), 100);
+      return prev;
+    });
   };
 
   const handleSkip = () => {
@@ -178,13 +185,20 @@ export default function LearnPage({ onNavigateToReview, pendingSessionId }: Prop
           <span style={{color:'#4a90d9',fontWeight:'bold'}}>今日 {stats.today} 句</span>
           <span style={{color:'#27ae60',fontWeight:'bold'}}>总计 {stats.total} 句</span>
         </div>
-        {importStep && <div style={{background:'#fff3cd',color:'#856404',padding:'8px 12px',borderRadius:4,marginBottom:12,fontSize:14,textAlign:'center'}}>{importStep}</div>}
-        {error && <div className="error" style={{background:'#fdd',color:'#c33',padding:'8px 12px',borderRadius:4,marginBottom:12}}>{error}</div>}
-        <div style={{textAlign:'center',padding:60,color:'#999',fontSize:16}}>
-          <p>点击下方按钮导入字幕文件开始学习</p>
-          <button onClick={handleImport} disabled={loading} style={{marginTop:20,background:'#4a90d9',color:'white',border:'none',padding:'10px 24px',borderRadius:4,fontSize:14,cursor:'pointer'}}>
-            {loading ? '处理中...' : '导入字幕'}
-          </button>
+        {error && <div style={{background:'#fdd',color:'#c33',padding:'8px 12px',borderRadius:4,marginBottom:12}}>{error}</div>}
+        <div style={{textAlign:'center',padding:40,color:'#999',fontSize:16}}>
+          <p style={{marginBottom:20}}>导入中英文字幕文件开始学习</p>
+          <div style={{display:'flex',gap:12,justifyContent:'center',flexWrap:'wrap'}}>
+            <button onClick={handleImportCh} disabled={loading}
+              style={{background: pendingChFile ? '#27ae60' : '#4a90d9', color:'white', border:'none', padding:'10px 20px', borderRadius:4, fontSize:14, cursor:'pointer'}}>
+              {pendingChFile ? '✅ 中文已选' : '导入中文字幕'}
+            </button>
+            <button onClick={handleImportEn} disabled={loading}
+              style={{background: pendingEnFile ? '#27ae60' : '#4a90d9', color:'white', border:'none', padding:'10px 20px', borderRadius:4, fontSize:14, cursor:'pointer'}}>
+              {pendingEnFile ? '✅ 英文已选' : '导入英文字幕'}
+            </button>
+          </div>
+          {loading && <p style={{marginTop:16,color:'#666'}}>处理中...</p>}
         </div>
       </div>
     );
