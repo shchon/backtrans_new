@@ -5,7 +5,7 @@ let db: SqlJsDatabase | null = null;
 
 export async function initDatabase(): Promise<void> {
   const SQL = await initSqlJs({
-    locateFile: (file: string) => `https://sql.js.org/dist/${file}`,
+    locateFile: (file: string) => `/${file}`,
   });
   db = new SQL.Database();
   db.run(CREATE_TABLES_SQL);
