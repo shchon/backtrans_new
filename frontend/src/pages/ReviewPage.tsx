@@ -2,13 +2,14 @@ import { useState, useEffect, useRef } from 'react';
 import type { SubtitleRow } from '../db/operations';
 import {
   getSubtitlesForSession, getEvaluationsForSession,
+  getAllTranslationsForSubtitle,
   addFavorite, removeFavorite, addExpression, isFavorite,
 } from '../db/operations';
 import type { EvalRow } from '../db/operations';
 
 interface Props { sessionId: number | null; active?: boolean; }
 
-interface EvalWithSub { eval: EvalRow; sub: SubtitleRow; }
+interface EvalWithSub { eval: EvalRow; sub: SubtitleRow; userTranslation: string; }
 
 export default function ReviewPage({ sessionId, active }: Props) {
   const [items, setItems] = useState<EvalWithSub[]>([]);
@@ -29,7 +30,10 @@ export default function ReviewPage({ sessionId, active }: Props) {
       const combined: EvalWithSub[] = [];
       for (const ev of evals) {
         const sub = subMap.get((ev as unknown as Record<string, unknown>).subtitle_id as number);
-        if (sub) combined.push({ eval: ev, sub });
+        if (!sub) continue;
+        const translations = getAllTranslationsForSubtitle(sub.id);
+        const userTranslation = translations.length > 0 ? translations[translations.length - 1].user_input : '';
+        combined.push({ eval: ev, sub, userTranslation });
       }
       combined.sort((a, b) => a.sub.idx - b.sub.idx);
       setItems(combined);
@@ -98,7 +102,7 @@ export default function ReviewPage({ sessionId, active }: Props) {
       {loading && <p style={{color:'#999'}}>加载中...</p>}
       {error && <div style={{background:'#fdd',color:'#c33',padding:'8px 12px',borderRadius:4,marginBottom:12}}>{error}</div>}
       <div style={{display:'flex',flexDirection:'column',gap:6}}>
-        {items.map(({ eval: ev, sub }) => {
+        {items.map(({ eval: ev, sub, userTranslation }) => {
           const avg = ((ev.meaning_score ?? 0) + (ev.grammar_score ?? 0) + (ev.naturalness_score ?? 0) + (ev.subtitle_style_score ?? 0)) / 4;
           const exp = expanded.has(sub.id);
           return (
@@ -114,6 +118,11 @@ export default function ReviewPage({ sessionId, active }: Props) {
               </div>
               {exp && (
                 <div style={{marginTop:12,paddingTop:12,borderTop:'1px solid #eee'}}>
+                  {userTranslation && (
+                    <div style={{fontSize:14,color:'#4a90d9',fontStyle:'italic',marginBottom:12,padding:8,background:'#f0f5ff',borderRadius:4,whiteSpace:'pre-wrap'}}>
+                      你的翻译: {userTranslation}
+                    </div>
+                  )}
                   {ev.status === 'done' && <>
                     <div style={{display:'flex',gap:8,marginBottom:12}}>
                       {[['意思',ev.meaning_score],['语法',ev.grammar_score],['自然度',ev.naturalness_score],['字幕风格',ev.subtitle_style_score]].map(([n,s]) => (
