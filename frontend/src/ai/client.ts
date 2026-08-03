@@ -15,6 +15,12 @@ export interface AiConfig {
   contextN: number;
 }
 
+function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+
 export async function callAi(
   config: AiConfig,
   context: string,
@@ -27,16 +33,19 @@ export async function callAi(
     .replace('{official}', official);
 
   try {
-    const res = await fetch(`${config.baseUrl.replace(/\/+$/, '')}/chat/completions`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${config.apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: config.model,
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.3,
-      }),
-      signal: AbortSignal.timeout(60000),
-    });
+    const res = await fetchWithTimeout(
+      `${config.baseUrl.replace(/\/+$/, '')}/chat/completions`,
+      {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${config.apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: config.model,
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.3,
+        }),
+      },
+      120000, // 2 minutes for AI calls
+    );
     if (!res.ok) return null;
     const data = await res.json();
     const content: string = data.choices?.[0]?.message?.content;
@@ -84,7 +93,7 @@ export async function testConnection(
 ): Promise<{ ok: boolean; error?: string }> {
   try {
     const url = `${baseUrl.replace(/\/+$/, '')}/chat/completions`;
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -92,8 +101,7 @@ export async function testConnection(
         messages: [{ role: 'user', content: 'Say OK and nothing else.' }],
         max_tokens: 10,
       }),
-      signal: AbortSignal.timeout(15000),
-    });
+    }, 30000);
     if (res.ok) return { ok: true };
     const text = await res.text().catch(() => '');
     return { ok: false, error: `HTTP ${res.status}: ${text.slice(0, 200)}` };
