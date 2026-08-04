@@ -58,7 +58,7 @@ export async function callAi(
     const content: string = data.choices?.[0]?.message?.content;
     if (!content) return { ok: false, error: 'AI 返回了空内容' };
     const parsed = parseAiResponse(content);
-    if (!parsed) return { ok: false, error: 'AI 返回内容无法解析为 JSON' };
+    if (!parsed) return { ok: false, error: `AI 返回内容无法解析为 JSON。原始返回: ${content.slice(0, 500)}` };
     return { ok: true, result: parsed };
   } catch (e) {
     return { ok: false, error: String(e).slice(0, 300) };
@@ -67,8 +67,15 @@ export async function callAi(
 
 function parseAiResponse(raw: string): AiResult | null {
   let content = raw.trim();
-  const m = content.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
-  if (m) content = m[1].trim();
+
+  // Strip markdown code fences (with or without language tag)
+  const fenceMatch = content.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+  if (fenceMatch) content = fenceMatch[1].trim();
+
+  // Try to find JSON object boundaries if there's extra text
+  const objMatch = content.match(/\{[\s\S]*\}/);
+  if (objMatch) content = objMatch[0];
+
   try {
     const data = JSON.parse(content);
     return {
@@ -79,7 +86,21 @@ function parseAiResponse(raw: string): AiResult | null {
       analysis: String(data.analysis ?? ''),
       suggested_expressions: data.suggested_expressions ?? [],
     };
-  } catch { return null; }
+  } catch {
+    // Try again with single quotes converted to double quotes
+    try {
+      const fixed = content.replace(/'/g, '"');
+      const data = JSON.parse(fixed);
+      return {
+        meaning_score: Number(data.meaning_score ?? 0),
+        grammar_score: Number(data.grammar_score ?? 0),
+        naturalness_score: Number(data.naturalness_score ?? 0),
+        subtitle_style_score: Number(data.subtitle_style_score ?? 0),
+        analysis: String(data.analysis ?? ''),
+        suggested_expressions: data.suggested_expressions ?? [],
+      };
+    } catch { return null; }
+  }
 }
 
 export function buildContext(
