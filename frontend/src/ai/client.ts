@@ -21,12 +21,16 @@ function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number):
   return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timer));
 }
 
+export type CallAiResult =
+  | { ok: true; result: AiResult }
+  | { ok: false; error: string };
+
 export async function callAi(
   config: AiConfig,
   context: string,
   userInput: string,
   official: string,
-): Promise<AiResult | null> {
+): Promise<CallAiResult> {
   const prompt = config.promptTemplate
     .replace('{context}', context)
     .replace('{user_input}', userInput)
@@ -44,14 +48,21 @@ export async function callAi(
           temperature: 0.3,
         }),
       },
-      120000, // 2 minutes for AI calls
+      120000,
     );
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      return { ok: false, error: `HTTP ${res.status}: ${text.slice(0, 200)}` };
+    }
     const data = await res.json();
     const content: string = data.choices?.[0]?.message?.content;
-    if (!content) return null;
-    return parseAiResponse(content);
-  } catch { return null; }
+    if (!content) return { ok: false, error: 'AI 返回了空内容' };
+    const parsed = parseAiResponse(content);
+    if (!parsed) return { ok: false, error: 'AI 返回内容无法解析为 JSON' };
+    return { ok: true, result: parsed };
+  } catch (e) {
+    return { ok: false, error: String(e).slice(0, 300) };
+  }
 }
 
 function parseAiResponse(raw: string): AiResult | null {

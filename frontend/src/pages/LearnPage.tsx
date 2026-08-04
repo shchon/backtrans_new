@@ -61,15 +61,15 @@ export default function LearnPage({ onNavigateToReview, pendingSessionId }: Prop
     // Fire and forget AI call
     const config = loadConfig();
     const context = buildContext(subtitles, sub.idx, config.contextN);
-    callAi(config, context, text, sub.english_official).then(result => {
-      if (result) {
+    callAi(config, context, text, sub.english_official).then(r => {
+      if (r.ok) {
         updateEvaluationStatus(eid, "done",
-          result.meaning_score, result.grammar_score,
-          result.naturalness_score, result.subtitle_style_score,
-          result.analysis, JSON.stringify(result.suggested_expressions),
+          r.result.meaning_score, r.result.grammar_score,
+          r.result.naturalness_score, r.result.subtitle_style_score,
+          r.result.analysis, JSON.stringify(r.result.suggested_expressions),
         );
       } else {
-        updateEvaluationStatus(eid, "failed", null, null, null, null, null, null, "AI call failed");
+        updateEvaluationStatus(eid, "failed", null, null, null, null, null, null, r.error);
       }
     });
 

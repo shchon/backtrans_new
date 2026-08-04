@@ -123,6 +123,11 @@ export default function ReviewPage({ sessionId, active }: Props) {
                       你的翻译: {userTranslation}
                     </div>
                   )}
+                  {ev.status === 'failed' && ev.error_message && (
+                    <div style={{fontSize:13,color:'#c33',marginBottom:12,padding:8,background:'#fff0f0',borderRadius:4}}>
+                      ⚠ {ev.error_message}
+                    </div>
+                  )}
                   {ev.status === 'done' && <>
                     <div style={{display:'flex',gap:8,marginBottom:12}}>
                       {[['意思',ev.meaning_score],['语法',ev.grammar_score],['自然度',ev.naturalness_score],['字幕风格',ev.subtitle_style_score]].map(([n,s]) => (
