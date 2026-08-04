@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { loadConfig, saveConfig } from '../config/index';
 import type { AppConfig } from '../config/index';
 import { testConnection } from '../ai/client';
@@ -9,6 +9,8 @@ export default function SettingsPage() {
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [testing, setTesting] = useState(false);
+  const [exportJson, setExportJson] = useState<string | null>(null);
+  const exportTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => { setConfig(loadConfig()); }, []);
 
@@ -32,7 +34,7 @@ export default function SettingsPage() {
     setTesting(false);
   };
 
-  const handleExport = async () => {
+  const handleExport = () => {
     const data = {
       version: 1,
       exported_at: new Date().toISOString(),
@@ -40,40 +42,16 @@ export default function SettingsPage() {
       favorites: getFavorites(),
       expressions: getAllExpressions(),
     };
-    const json = JSON.stringify(data, null, 2);
-    const filename = `backtranslate_backup_${new Date().toISOString().slice(0, 10)}.json`;
+    setExportJson(JSON.stringify(data, null, 2));
+  };
 
-    // Try native share (Android), fallback to copy, fallback to download
-    try {
-      const file = new File([json], filename, { type: 'application/json' });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: 'BackTranslate 备份' });
-        setMessage('导出成功');
-        setTimeout(() => setMessage(null), 2000);
-        return;
-      }
-    } catch {
-      // share cancelled or not supported, try next method
-    }
-
-    try {
-      await navigator.clipboard.writeText(json);
-      setMessage('已复制到剪贴板（注：安卓分享取消或未支持时使用此方式）');
-      setTimeout(() => setMessage(null), 4000);
-      return;
-    } catch {
-      // fall through to download
-    }
-
-    // Desktop fallback
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-    setMessage('导出成功');
+  const handleCopy = () => {
+    const ta = exportTextareaRef.current;
+    if (!ta) return;
+    ta.select();
+    ta.setSelectionRange(0, 999999);
+    document.execCommand('copy');
+    setMessage('已复制到剪贴板');
     setTimeout(() => setMessage(null), 2000);
   };
 
@@ -166,6 +144,20 @@ export default function SettingsPage() {
           <button onClick={handleImport} style={{padding:'8px 16px',border:'1px solid #f39c12',color:'#f39c12',background:'white',borderRadius:4,cursor:'pointer',fontSize:14}}>导入备份</button>
         </div>
         {message && <div style={{padding:'8px 12px',borderRadius:4,background:message.includes('成功')?'#dfd':'#fdd',color:message.includes('成功')?'#272':'#c33',fontSize:13}}>{message}</div>}
+
+        {exportJson && (
+          <div style={{borderTop:'1px solid #eee',paddingTop:12}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+              <span style={{fontSize:13,color:'#666'}}>备份数据（复制内容保存为 .json 文件）</span>
+              <div style={{display:'flex',gap:6}}>
+                <button onClick={handleCopy} style={{padding:'6px 14px',border:'1px solid #4a90d9',color:'#4a90d9',background:'white',borderRadius:4,cursor:'pointer',fontSize:13}}>复制</button>
+                <button onClick={() => setExportJson(null)} style={{padding:'6px 14px',border:'1px solid #ccc',color:'#666',background:'white',borderRadius:4,cursor:'pointer',fontSize:13}}>关闭</button>
+              </div>
+            </div>
+            <textarea ref={exportTextareaRef} readOnly value={exportJson}
+              style={{width:'100%',height:200,padding:8,border:'1px solid #ccc',borderRadius:4,fontSize:12,fontFamily:'monospace'}} />
+          </div>
+        )}
       </div>
     </div>
   );
