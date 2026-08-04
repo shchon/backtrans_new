@@ -10,6 +10,31 @@ import { parseSrt } from '../srt/parser';
 import { pairByIndex } from '../srt/pairing';
 import { loadConfig } from '../config/index';
 
+const RECENT_KEY = 'backtranslate_recents';
+interface RecentSession {
+  name: string;
+  chinese_srt: string;
+  english_srt: string;
+  time: number;
+}
+
+function loadRecents(): RecentSession[] {
+  try {
+    const raw = localStorage.getItem(RECENT_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveRecents(recents: RecentSession[]): void {
+  localStorage.setItem(RECENT_KEY, JSON.stringify(recents.slice(0, 8)));
+}
+
+function addRecent(name: string, chineseSrt: string, englishSrt: string): void {
+  const recents = loadRecents().filter(r => r.name !== name);
+  recents.unshift({ name, chinese_srt: chineseSrt, english_srt: englishSrt, time: Date.now() });
+  saveRecents(recents);
+}
+
 interface Props {
   onNavigateToReview?: (sessionId: number) => void;
   pendingSessionId?: number | null;
@@ -28,6 +53,7 @@ export default function LearnPage({ onNavigateToReview, pendingSessionId }: Prop
   const [input, setInput] = useState('');
   const [pendingChFile, setPendingChFile] = useState<File | null>(null);
   const [pendingEnFile, setPendingEnFile] = useState<File | null>(null);
+  const [recents, setRecents] = useState<RecentSession[]>(loadRecents());
   const inputRef = useRef<HTMLInputElement>(null);
   const jumpInputRef = useRef<HTMLInputElement>(null);
 
@@ -104,6 +130,9 @@ export default function LearnPage({ onNavigateToReview, pendingSessionId }: Prop
       const pairs = pairByIndex(chSubs, enSubs);
       if (!pairs.length) throw new Error('没有可配对的中英字幕');
 
+      // Save to recent sessions for quick reload
+      addRecent(name, chText, enText);
+
       const sid = createSession(name, pairs.length);
       const subsList: Record<string, unknown>[] = pairs.map(([ch, en], i) => ({
         idx: i + 1, chinese: ch.text, english_official: en.text,
@@ -127,6 +156,43 @@ export default function LearnPage({ onNavigateToReview, pendingSessionId }: Prop
       setTimeout(() => inputRef.current?.focus(), 100);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : '导入失败');
+      setLoading(false);
+    }
+  };
+
+  const handleRecentClick = async (recent: RecentSession) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const chSubs = parseSrt(recent.chinese_srt);
+      const enSubs = parseSrt(recent.english_srt);
+      if (!chSubs.length || !enSubs.length) throw new Error('无法解析字幕文件');
+      const pairs = pairByIndex(chSubs, enSubs);
+      if (!pairs.length) throw new Error('没有可配对的中英字幕');
+      // Bump to top of recents
+      addRecent(recent.name, recent.chinese_srt, recent.english_srt);
+      setRecents(loadRecents());
+
+      const sid = createSession(recent.name, pairs.length);
+      const subsList = pairs.map(([ch, en], i) => ({
+        idx: i + 1, chinese: ch.text, english_official: en.text,
+        prev_chinese: i > 0 ? pairs[i-1][0].text : '',
+        prev_english: i > 0 ? pairs[i-1][1].text : '',
+        next_chinese: i < pairs.length - 1 ? pairs[i+1][0].text : '',
+        next_english: i < pairs.length - 1 ? pairs[i+1][1].text : '',
+      }));
+      createSubtitlesBatch(sid, subsList);
+      const dbSubs = getSubtitlesForSession(sid);
+      setSessionId(sid);
+      setSubtitles(dbSubs);
+      setTotalCount(dbSubs.length);
+      setCurrentIdx(0);
+      setCompletedCount(0);
+      setHasSession(true);
+      setLoading(false);
+      setTimeout(() => inputRef.current?.focus(), 100);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '加载失败');
       setLoading(false);
     }
   };
@@ -209,6 +275,27 @@ export default function LearnPage({ onNavigateToReview, pendingSessionId }: Prop
             </button>
           </div>
           {loading && <p style={{marginTop:16,color:'#666'}}>处理中...</p>}
+
+          {recents.length > 0 && (
+            <div style={{marginTop:32,textAlign:'left',maxWidth:400,margin:'32px auto 0'}}>
+              <p style={{fontSize:13,color:'#999',marginBottom:8}}>最近字幕</p>
+              <div style={{display:'flex',flexDirection:'column',gap:4}}>
+                {recents.slice(0, 8).map((r, i) => (
+                  <button key={i}
+                    onClick={() => handleRecentClick(r)}
+                    disabled={loading}
+                    style={{
+                      textAlign:'left',padding:'10px 14px',border:'1px solid #e0e0e0',
+                      borderRadius:6,background:'white',cursor:'pointer',fontSize:13,color:'#333',
+                      display:'flex',justifyContent:'space-between',alignItems:'center'
+                    }}>
+                    <span>{r.name}</span>
+                    <span style={{color:'#bbb',fontSize:11}}>{new Date(r.time).toLocaleDateString('zh-CN', {month:'short',day:'numeric'})}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
