@@ -32,7 +32,7 @@ export default function SettingsPage() {
     setTesting(false);
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     const data = {
       version: 1,
       exported_at: new Date().toISOString(),
@@ -41,11 +41,36 @@ export default function SettingsPage() {
       expressions: getAllExpressions(),
     };
     const json = JSON.stringify(data, null, 2);
+    const filename = `backtranslate_backup_${new Date().toISOString().slice(0, 10)}.json`;
+
+    // Try native share (Android), fallback to copy, fallback to download
+    try {
+      const file = new File([json], filename, { type: 'application/json' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'BackTranslate 备份' });
+        setMessage('导出成功');
+        setTimeout(() => setMessage(null), 2000);
+        return;
+      }
+    } catch {
+      // share cancelled or not supported, try next method
+    }
+
+    try {
+      await navigator.clipboard.writeText(json);
+      setMessage('已复制到剪贴板（注：安卓分享取消或未支持时使用此方式）');
+      setTimeout(() => setMessage(null), 4000);
+      return;
+    } catch {
+      // fall through to download
+    }
+
+    // Desktop fallback
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `backtranslate_backup_${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
     setMessage('导出成功');
