@@ -152,6 +152,7 @@ export default function LearnPage({ onNavigateToReview, pendingSessionId }: Prop
       setHasSession(true);
       setPendingChFile(null);
       setPendingEnFile(null);
+      setRecents(loadRecents());
       setLoading(false);
       setTimeout(() => inputRef.current?.focus(), 100);
     } catch (err: unknown) {
@@ -275,28 +276,28 @@ export default function LearnPage({ onNavigateToReview, pendingSessionId }: Prop
             </button>
           </div>
           {loading && <p style={{marginTop:16,color:'#666'}}>处理中...</p>}
-
-          {recents.length > 0 && (
-            <div style={{marginTop:24,width:'100%'}}>
-              <p style={{fontSize:13,color:'#666',marginBottom:8,fontWeight:'bold'}}>最近字幕</p>
-              <div style={{display:'flex',flexDirection:'column',gap:4}}>
-                {recents.slice(0, 8).map((r, i) => (
-                  <button key={i}
-                    onClick={() => handleRecentClick(r)}
-                    disabled={loading}
-                    style={{
-                      textAlign:'left',padding:'10px 14px',border:'1px solid #e0e0e0',
-                      borderRadius:6,background:'white',cursor:'pointer',fontSize:13,color:'#333',
-                      display:'flex',justifyContent:'space-between',alignItems:'center'
-                    }}>
-                    <span>{r.name}</span>
-                    <span style={{color:'#bbb',fontSize:11}}>{new Date(r.time).toLocaleDateString('zh-CN', {month:'short',day:'numeric'})}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
+
+        {recents.length > 0 && (
+          <div style={{marginTop:20}}>
+            <p style={{fontSize:13,color:'#666',marginBottom:8,fontWeight:'bold'}}>最近字幕</p>
+            <div style={{display:'flex',flexDirection:'column',gap:4}}>
+              {recents.slice(0, 8).map((r, i) => (
+                <button key={i}
+                  onClick={() => handleRecentClick(r)}
+                  disabled={loading}
+                  style={{
+                    textAlign:'left',padding:'10px 14px',border:'1px solid #e0e0e0',
+                    borderRadius:6,background:'white',cursor:'pointer',fontSize:13,color:'#333',
+                    display:'flex',justifyContent:'space-between',alignItems:'center'
+                  }}>
+                  <span>{r.name}</span>
+                  <span style={{color:'#bbb',fontSize:11}}>{new Date(r.time).toLocaleDateString('zh-CN', {month:'short',day:'numeric'})}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
