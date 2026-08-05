@@ -73,26 +73,26 @@ export default function SettingsPage() {
         // Restore config
         saveConfig({ ...loadConfig(), ...data.config });
 
-        // Restore favorites (skip duplicates via INSERT OR IGNORE)
+        let favCount = 0;
         if (Array.isArray(data.favorites)) {
           for (const fav of data.favorites) {
-            if (fav.id) addFavorite(Number(fav.id));
+            if (fav.id) { addFavorite(Number(fav.id)); favCount++; }
           }
         }
 
-        // Restore expressions (skip duplicates)
+        let exprCount = 0;
         if (Array.isArray(data.expressions)) {
           for (const expr of data.expressions) {
             if (expr.phrase) {
               addExpression(expr.phrase, expr.source_subtitle_id ?? 0, expr.notes ?? '');
+              exprCount++;
             }
           }
         }
 
-        // Reload config into state
         setConfig(loadConfig());
-        setMessage('导入成功');
-        setTimeout(() => setMessage(null), 3000);
+        setMessage(`导入成功（收藏 ${favCount} 条，表达 ${exprCount} 条）`);
+        setTimeout(() => setMessage(null), 4000);
       } catch {
         setMessage('导入失败: 无法解析文件');
       }

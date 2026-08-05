@@ -177,7 +177,6 @@ export function isFavorite(subtitleId: number): boolean {
 
 export function getFavorites(): Record<string, unknown>[] {
   const db = getDb();
-  // First get all favorite subtitle_ids
   const favRes = db.exec("SELECT subtitle_id, created_at FROM favorites ORDER BY created_at DESC");
   if (!favRes.length) return [];
 
@@ -185,12 +184,15 @@ export function getFavorites(): Record<string, unknown>[] {
   for (const row of favRes[0].values) {
     const subtitleId = Number(row[0]);
     const createdAt = String(row[1] ?? '');
-    // Then get subtitle data
+
     const subRes = db.exec("SELECT id, session_id, idx, chinese, english_official, prev_chinese, prev_english, next_chinese, next_english FROM subtitles WHERE id = ?", [subtitleId]);
     if (subRes.length && subRes[0].values.length) {
       const sub = rowToObj<Record<string, unknown>>(subRes[0].columns, subRes[0].values[0]);
       sub.fav_created_at = createdAt;
       results.push(sub);
+    } else {
+      // Subtitle no longer exists — still show the favorite with minimal info
+      results.push({ id: subtitleId, fav_created_at: createdAt, chinese: '(字幕已删除)', english_official: '', idx: 0 });
     }
   }
   return results;
