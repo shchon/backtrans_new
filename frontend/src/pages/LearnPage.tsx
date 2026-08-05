@@ -277,8 +277,8 @@ export default function LearnPage({ onNavigateToReview, pendingSessionId }: Prop
           {loading && <p style={{marginTop:16,color:'#666'}}>处理中...</p>}
 
           {recents.length > 0 && (
-            <div style={{marginTop:32,textAlign:'left',maxWidth:400,margin:'32px auto 0'}}>
-              <p style={{fontSize:13,color:'#999',marginBottom:8}}>最近字幕</p>
+            <div style={{marginTop:24,width:'100%'}}>
+              <p style={{fontSize:13,color:'#666',marginBottom:8,fontWeight:'bold'}}>最近字幕</p>
               <div style={{display:'flex',flexDirection:'column',gap:4}}>
                 {recents.slice(0, 8).map((r, i) => (
                   <button key={i}

@@ -4,6 +4,7 @@ import type { AppConfig } from '../config/index';
 import { testConnection } from '../ai/client';
 import { getFavorites, addFavorite } from '../db/operations';
 import { getAllExpressions, addExpression } from '../db/operations';
+import { getDb } from '../db/index';
 
 export default function SettingsPage() {
   const [config, setConfig] = useState<AppConfig | null>(null);
@@ -75,8 +76,30 @@ export default function SettingsPage() {
 
         let favCount = 0;
         if (Array.isArray(data.favorites)) {
+          const db = getDb();
+          // Ensure a placeholder session exists for imported favorites
+          const sessRes = db.exec("SELECT id FROM sessions WHERE name = '导入收藏'");
+          let importSid: number;
+          if (!sessRes.length || !sessRes[0].values.length) {
+            db.run("INSERT INTO sessions (name, total_sentences) VALUES ('导入收藏', ?)", [data.favorites.length]);
+            importSid = Number(db.exec("SELECT last_insert_rowid()")[0].values[0][0]);
+          } else {
+            importSid = Number(sessRes[0].values[0][0]);
+          }
+
           for (const fav of data.favorites) {
-            if (fav.id) { addFavorite(Number(fav.id)); favCount++; }
+            if (!fav.id) continue;
+            // Check if subtitle exists
+            const subExists = db.exec("SELECT 1 FROM subtitles WHERE id = ?", [Number(fav.id)]);
+            if (!subExists.length || !subExists[0].values.length) {
+              // Insert placeholder subtitle
+              db.run(
+                "INSERT OR IGNORE INTO subtitles (id, session_id, idx, chinese, english_official) VALUES (?, ?, ?, ?, ?)",
+                [Number(fav.id), importSid, fav.idx ?? favCount + 1, fav.chinese ?? '', fav.english_official ?? '']
+              );
+            }
+            addFavorite(Number(fav.id));
+            favCount++;
           }
         }
 
